@@ -1,129 +1,62 @@
-# CrewAI Studio
+# 🐝 AgencyHive AI Studio
 
-Welcome to CrewAI Studio! This application provides a user-friendly interface written in Streamlit for interacting with CrewAI, suitable even for those who don't want to write any code. Follow the steps below to install and run the application on Windows or Linux (probably also MacOS) using either Conda or a virtual environment.
+A powerful macOS application for creating and managing AI agent crews - no coding required! Based on the excellent [CrewAI Studio](https://github.com/strnad/CrewAI-Studio) by strnad.
 
-## Features
+## ✨ Features
 
-- **Multi-platform support**: Works on Windows, Linux and MacOS.
-- **No coding required**: User-friendly interface for interacting with CrewAI.
-- **Conda and virtual environment support**: Choose between Conda and a Python virtual environment for installation.
-- **CrewAI tools** You can use crewai tools to interact with real world. ~~Crewai studio uses a forked version of crewai-tools with some bugfixes and enhancements (https://github.com/strnad/crewAI-tools)~~ (bugfixes already merged to crewai-tools)
-- **\*NEW\* Custom Tools** Custom tools for calling APIs and for writing files. More will be added soon
-- **API support**: Currently OpenAI, Groq, Anthropic and LM Studio backends are supported. OpenAI key is probably still needed for embeddings in many tools. Don't forget to load an embedding model when using LM Studio.
-- **Single Page app export**: Feature to export crew as simple single page streamlit app (doesn't support custom tools yet).
-- **Threaded crew run**: Crews can run in background and can be stopped.
+- 🤖 Build AI agent crews through an intuitive interface
+- 🔧 Rich toolkit including API calls, file operations, and web scraping
+- 🔌 Support for OpenAI, Groq, Anthropic and LM Studio
+- 📱 Export crews as standalone apps
+- ⚡️ Background processing with stop capability
+- 🎯 Perfect for non-developers who want to harness AI agents
 
-## Screenshots
+## 🖼️ Preview
 
-<img src="https://raw.githubusercontent.com/strnad/CrewAI-Studio/main/img/crews.png" alt="crews definition" style="width:50%;"/>
-<img src="https://raw.githubusercontent.com/strnad/CrewAI-Studio/main/img/kickoff.png" alt="kickoff" style="width:50%;"/>
+![Crew Definition](https://raw.githubusercontent.com/strnad/CrewAI-Studio/main/img/crews.png)
+![Crew Execution](https://raw.githubusercontent.com/strnad/CrewAI-Studio/main/img/kickoff.png)
 
-## Installation
+## 🚀 Quick Start for macOS
 
-### Using Virtual Environment
+1. **Download & Install**
 
-**For Virtual Environment**: Ensure you have Python installed. If you dont have python instaled, you can simply use the conda installer.
+```bash
+# Clone the repository
+git clone https://github.com/strnad/CrewAI-Studio.git
+cd CrewAI-Studio
 
-#### On Linux or MacOS
+# Install dependencies
+./install_venv.sh
+```
 
-1. **Clone the repository (or use downloaded ZIP file)**:
+2. **Launch**
 
-   ```bash
-   git clone https://github.com/strnad/CrewAI-Studio.git
-   cd CrewAI-Studio
-   ```
+```bash
+./run_venv.sh
+```
 
-2. **Run the installation script**:
+That's it! The app will open in your default browser.
 
-   ```bash
-   ./install_venv.sh
-   ```
+## ⚙️ Configuration
 
-3. **Run the application**:
-   ```bash
-   ./run_venv.sh
-   ```
+Create a `.env` file with your API keys:
 
-#### On Windows
+```env
+OPENAI_API_KEY="your-key"    # Required for many features
+GROQ_API_KEY="your-key"      # Optional
+ANTHROPIC_API_KEY="your-key" # Optional
+LMSTUDIO_API_BASE="http://localhost:1234/v1" # Optional, for LM Studio
+OLLAMA_HOST="http://localhost:11434/api"    # Optional, for Ollama
+OLLAMA_MODELS="llama2,mistral"             # Optional, comma-separated list of models
+```
 
-1. **Clone the repository (or use downloaded ZIP file)**:
+## 🆘 Need Help?
 
-   ```powershell
-   git clone https://github.com/strnad/CrewAI-Studio.git
-   cd CrewAI-Studio
-   ```
+If you run into issues:
+1. Remove the `venv` folder and reinstall
+2. Back up and rename `crewai.db` if upgrading versions
+3. Open an issue in our GitHub repository
 
-2. **Run the Conda installation script**:
+## 🙏 Acknowledgments
 
-   ```powershell
-   ./install_venv.bat
-   ```
-
-3. **Run the application**:
-   ```powershell
-   ./run_venv.bat
-   ```
-
-### Using Conda
-
-Conda will be installed locally in the project folder. No need for a pre-existing Conda installation.
-
-#### On Linux
-
-1. **Clone the repository (or use downloaded ZIP file)**:
-
-   ```bash
-   git clone https://github.com/strnad/CrewAI-Studio.git
-   cd CrewAI-Studio
-   ```
-
-2. **Run the Conda installation script**:
-
-   ```bash
-   ./install_conda.sh
-   ```
-
-3. **Run the application**:
-   ```bash
-   ./run_conda.sh
-   ```
-
-#### On Windows
-
-1. **Clone the repository (or use downloaded ZIP file)**:
-
-   ```powershell
-   git clone https://github.com/strnad/CrewAI-Studio.git
-   cd CrewAI-Studio
-   ```
-
-2. **Run the Conda installation script**:
-
-   ```powershell
-   ./install_conda.bat
-   ```
-
-3. **Run the application**:
-   ```powershell
-   ./run_conda.bat
-   ```
-
-## Configuration
-
-Before running the application, ensure you update the `.env` file with your API keys and other necessary configurations. An example `.env` file is provided for reference.
-
-## Troubleshooting
-In case of problems:
-- Delete the `venv/miniconda` folder and reinstall `crewai-studio`.
-- Rename `crewai.db` (it contains your crews but sometimes new versions can break compatibility).
-- Raise an issue and I will help you.
-
-## Star History
-
-<a href="https://star-history.com/#strnad/CrewAI-Studio&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=strnad/CrewAI-Studio&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=strnad/CrewAI-Studio&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=strnad/CrewAI-Studio&type=Date" />
- </picture>
-</a>
+AgencyHive AI Studio is powered by [CrewAI Studio](https://github.com/strnad/CrewAI-Studio). Special thanks to strnad for creating the original codebase that made this possible.
