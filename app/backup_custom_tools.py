@@ -3,89 +3,91 @@ from typing import Optional, Dict, Any, List, Type
 from crewai_tools import BaseTool
 import requests
 import importlib.util
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, BaseModel
 import docker
 import base64
+
 class FixedCustomFileWriteToolInputSchema(BaseModel):
     content: str = Field(..., description="The content to write or append to the file")
     mode: str = Field(..., description="Mode to open the file in, either 'w' or 'a'")
-
-    model_config = {
-        "extra": "forbid"
-    }
 
 class CustomFileWriteToolInputSchema(FixedCustomFileWriteToolInputSchema):
     content: str = Field(..., description="The content to write or append to the file")
     mode: str = Field(..., description="Mode to open the file in, either 'w' or 'a'")
     filename: str = Field(..., description="The name of the file to write to or append")
 
-    model_config = {
-        "extra": "forbid"
-    }
+class DirectorySearchToolInputSchema(BaseModel):
+    directory: str = Field(..., description="Directory path to search in")
+    query: str = Field(..., description="Query to search for")
 
-class CustomFileWriteTool(BaseTool):
-    name: str = "Write File"
-    description: str = "Tool to write or append to files"
-    args_schema = CustomFileWriteToolInputSchema
-    filename: Optional[str] = None
 
-    def __init__(self, base_folder: str, filename: Optional[str] = None, **kwargs):
-        super().__init__(**kwargs)
-        if filename is not None and len(filename) > 0:
-            self.args_schema = FixedCustomFileWriteToolInputSchema
-        self._base_folder = base_folder
-        self.filename = filename or None
-        self._ensure_base_folder_exists()
-        self._generate_description()
 
-    def _ensure_base_folder_exists(self):
-        os.makedirs(self._base_folder, exist_ok=True)
-
-    def _get_full_path(self, filename: Optional[str]) -> str:
-        if filename is None and self.filename is None:
-            raise ValueError("No filename specified and no default file set.")
-
-        chosen_file = filename or self.filename
-        full_path = os.path.abspath(os.path.join(self._base_folder, chosen_file))
-
-        if not full_path.startswith(os.path.abspath(self._base_folder)):
-            raise ValueError("Access outside the base directory is not allowed.")
-
-        return full_path
-
-    def _run(self, content: str, mode: str, filename: Optional[str] = None) -> Dict[str, Any]:
-        full_path = self._get_full_path(filename)
-        try:
-            with open(full_path, 'a' if mode == 'a' else 'w') as file:
-                file.write(content)
-            return {
-                "status": "success",
-                "message": f"Content successfully {'appended to' if mode == 'a' else 'written to'} {full_path}"
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": str(e)
-            }
-
-    def run(self, input_data: CustomFileWriteToolInputSchema) -> Any:
-        response_data = self._run(
-            content=input_data.content,
-            mode=input_data.mode,
-            filename=getattr(input_data, 'filename', None)
+class MyDirectorySearchTool(MyTool):
+    def __init__(self, tool_id=None, directory=None):
+        parameters = {
+            'directory': {'mandatory': True}
+        }
+        super().__init__(
+            tool_id,
+            'DirectorySearchTool',
+            "A tool that can be used to semantic search a query from a directory's content.",
+            parameters,
+            directory=directory
         )
-        return response_data
 
+    def create_tool(self) -> DirectorySearchTool:
+        from crewai_tools import DirectorySearchTool
+        directory = self.parameters.get('directory')
+        if not directory:
+            raise ValueError("Directory parameter is required")
+
+        directory_path = os.path.abspath(directory)
+        if not os.path.exists(directory_path):
+            raise ValueError(f"Directory does not exist: {directory_path}")
+        if not os.path.isdir(directory_path):
+            raise ValueError(f"Path is not a directory: {directory_path}")
+
+        # Create a new class that properly declares the directory field
+        class EnhancedDirectorySearchTool(DirectorySearchTool):
+            directory: str = Field(default="")
+            
+            def __init__(self, directory: str, **data):
+                super().__init__(**data)
+                self.directory = directory
+
+        # Return properly initialized tool
+        return EnhancedDirectorySearchTool(directory=directory_path)
+
+    def is_valid(self, show_warning=False):
+        directory = self.parameters.get('directory')
+        if not directory:
+            if show_warning:
+                st.warning(f"Directory parameter is required for {self.name}")
+            return False
+            
+        try:
+            directory_path = os.path.abspath(directory)
+            if not os.path.exists(directory_path):
+                if show_warning:
+                    st.warning(f"Directory does not exist: {directory_path}")
+                return False
+            if not os.path.isdir(directory_path):
+                if show_warning:
+                    st.warning(f"Path is not a directory: {directory_path}")
+                return False
+        except Exception as e:
+            if show_warning:
+                st.warning(f"Error validating directory: {str(e)}")
+            return False
+            
+        return True
+    
 class CustomApiToolInputSchema(BaseModel):
     endpoint: str = Field(..., description="The specific endpoint for the API call")
     method: str = Field(..., description="HTTP method to use (GET, POST, PUT, DELETE)")
     headers: Optional[Dict[str, str]] = Field(None, description="HTTP headers to include in the request")
     query_params: Optional[Dict[str, Any]] = Field(None, description="Query parameters for the request")
     body: Optional[Dict[str, Any]] = Field(None, description="Body of the request for POST/PUT methods")
-
-    model_config = {
-        "extra": "forbid"
-    }
 
 class CustomApiTool(BaseTool):
     name: str = "Call Api"
@@ -101,6 +103,7 @@ class CustomApiTool(BaseTool):
         self.default_headers = headers or {}
         self.default_query_params = query_params or {}
         self._generate_description()
+        
 
     def _run(self, endpoint: str, method: str, headers: Optional[Dict[str, str]] = None, query_params: Optional[Dict[str, Any]] = None, body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         url = f"{self.base_url}/{endpoint}".rstrip("/")
@@ -114,7 +117,7 @@ class CustomApiTool(BaseTool):
                 headers=headers,
                 params=query_params,
                 json=body,
-                verify=False
+                verify=False #TODO: add option to disable SSL verification
             )
             return {
                 "status_code": response.status_code,
@@ -133,6 +136,7 @@ class CustomApiTool(BaseTool):
             headers=input_data.headers,
             query_params=input_data.query_params,
             body=input_data.body
+            
         )
         return response_data
 
@@ -140,37 +144,37 @@ class CustomCodeInterpreterSchema(BaseModel):
     """Input for CustomCodeInterpreterTool."""
     code: Optional[str] = Field(
         None,
-        description="Python3 code to be interpreted in the Docker container. ALWAYS PRINT the final result and the output of the code",
+        description="Python3 code used to be interpreted in the Docker container. ALWAYS PRINT the final result and the output of the code",
     )
+
     run_script: Optional[str] = Field(
         None,
         description="Relative path to the script to run in the Docker container. The script should contain the code to be executed.",
     )
+
     libraries_used: str = Field(
         ...,
         description="List of libraries used in the code with proper installing names separated by commas. Example: numpy,pandas,beautifulsoup4",
     )
 
-    model_config = {
-        "extra": "forbid",
-        "arbitrary_types_allowed": True
-    }
+    class Config:
+        extra = "forbid"
 
-    @model_validator(mode='before')
-    @classmethod
+    @root_validator(pre=True)
     def check_code_or_run_script(cls, values):
-        if isinstance(values, dict):
-            code = values.get('code')
-            run_script = values.get('run_script')
-            if not code and not run_script:
-                raise ValueError('Either code or run_script must be provided')
-            if code and run_script:
-                raise ValueError('Only one of code or run_script should be provided')
+        code = values.get('code')
+        run_script = values.get('run_script')
+        if not code and not run_script:
+            raise ValueError('Either code or run_script must be provided')
+        if code and run_script:
+            raise ValueError('Only one of code or run_script should be provided')
         return values
+
+
 
 class CustomCodeInterpreterTool(BaseTool):
     name: str = "Code Interpreter"
-    description: str = "Interprets Python3 code strings with a final print statement. Requires either code or run_script to be provided."
+    description: str = "Interprets Python3 code strings with a final print statement. Requires eighter code or run_script to be provided."
     args_schema: Type[BaseModel] = CustomCodeInterpreterSchema
     code: Optional[str] = None
     run_script: Optional[str] = None
@@ -189,12 +193,15 @@ class CustomCodeInterpreterTool(BaseTool):
         return os.path.dirname(spec.origin)
 
     def _verify_docker_image(self) -> None:
-        """Verify if the Docker image is available"""
+        """
+        Verify if the Docker image is available
+        """
         image_tag = "code-interpreter:latest"
         client = docker.from_env()
 
         try:
             client.images.get(image_tag)
+
         except docker.errors.ImageNotFound:
             package_path = self._get_installed_package_path()
             dockerfile_path = os.path.join(package_path, "tools/code_interpreter_tool")
@@ -207,8 +214,12 @@ class CustomCodeInterpreterTool(BaseTool):
                 rm=True,
             )
 
-    def _install_libraries(self, container: docker.models.containers.Container, libraries: str) -> None:
-        """Install missing libraries in the Docker container"""
+    def _install_libraries(
+        self, container: docker.models.containers.Container, libraries: str
+    ) -> None:
+        """
+        Install missing libraries in the Docker container
+        """
         if libraries and len(libraries) > 0:
             for library in libraries.split(","):
                 print(f"Installing library: {library}")
@@ -216,6 +227,7 @@ class CustomCodeInterpreterTool(BaseTool):
                 if install_result.exit_code != 0:
                     print(f"Something went wrong while installing the library: {library}")
                     print(install_result.output.decode("utf-8"))
+            
 
     def _get_existing_container(self, container_name: str) -> Optional[docker.models.containers.Container]:
         client = docker.from_env()
@@ -239,12 +251,7 @@ class CustomCodeInterpreterTool(BaseTool):
         if existing_container:
             return existing_container
         return client.containers.run(
-            "code-interpreter",
-            detach=True,
-            tty=True,
-            working_dir="/workspace",
-            name=container_name,
-            volumes=volumes
+            "code-interpreter", detach=True, tty=True, working_dir="/workspace", name=container_name, volumes=volumes
         )
 
     def run_code_in_docker(self, code: str, libraries_used: str) -> str:
@@ -252,22 +259,23 @@ class CustomCodeInterpreterTool(BaseTool):
         container = self._init_docker_container()
         self._install_libraries(container, libraries_used)
         
+        # Encode the code to base64
         encoded_code = base64.b64encode(code.encode('utf-8')).decode('utf-8')
+        
+        # Create a command to decode the base64 string and run the Python code
         cmd_to_run = f'python3 -c "import base64; exec(base64.b64decode(\'{encoded_code}\').decode(\'utf-8\'))"'
         
         print(f"Running code in container: \n{code}")
+        
         exec_result = container.exec_run(cmd_to_run)
 
         if exec_result.exit_code != 0:
-            error_msg = f"Something went wrong while running the code: \n{exec_result.output.decode('utf-8')}"
-            print(error_msg)
-            return error_msg
-        
-        output = exec_result.output.decode("utf-8")
-        print(f"Code run output: \n{output}")
-        return output
+            print(f"Something went wrong while running the code: \n{exec_result.output.decode('utf-8')}")
+            return f"Something went wrong while running the code: \n{exec_result.output.decode('utf-8')}"
+        print(f"Code run output: \n{exec_result.output.decode('utf-8')}")
+        return exec_result.output.decode("utf-8")
     
-    def _run_script(self, run_script: str, libraries_used: str) -> str:
+    def _run_script(self, run_script: str,libraries_used: str) -> str:
         with open(f"{self.workspace_dir}/{run_script}", "r") as file:
             code = file.read()
             return self.run_code_in_docker(code, libraries_used)
@@ -275,8 +283,7 @@ class CustomCodeInterpreterTool(BaseTool):
     def _run(self, **kwargs) -> str:
         code = kwargs.get("code", self.code)
         run_script = kwargs.get("run_script", self.run_script)
-        libraries_used = kwargs.get("libraries_used", "")
-        
+        libraries_used = kwargs.get("libraries_used", [])
         if run_script:
             return self._run_script(run_script, libraries_used)
         return self.run_code_in_docker(code, libraries_used)

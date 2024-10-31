@@ -7,7 +7,7 @@ import queue
 import time
 import traceback
 import os
-
+from zep_python.client import Zep
 class PageCrewRun:
     def __init__(self):
         self.name = "Kickoff!"

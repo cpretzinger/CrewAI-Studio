@@ -5,9 +5,20 @@ from streamlit import session_state as ss
 from db_utils import save_agent, delete_agent
 from llms import llm_providers_and_models, create_llm
 from datetime import datetime
+import agentops
+from agentops import track_agent, record_tool, record_action, record, ActionEvent
+from zep_python.client import Zep
+import os
+from dotenv import load_dotenv
+from my_tools import MyTool 
 
+load_dotenv()
+
+client = Zep(api_key=os.getenv('ZEP_API_KEY'), base_url=os.getenv('ZEP_BASE_URL'))
+
+@track_agent(name="CrewAI_Agent")
 class MyAgent:
-    def __init__(self, id=None, role=None, backstory=None, goal=None, temperature=None, allow_delegation=False, verbose=False, cache= None, llm_provider_model=None, max_iter=None, created_at=None, tools=None):
+    def __init__(self, id=None, role=None, backstory=None, goal=None, temperature=None, allow_delegation=False, verbose=False, cache=None, llm_provider_model=None, max_iter=None, created_at=None, tools=None):
         self.id = id or "A_" + rnd_id()
         self.role = role or "Senior Researcher"
         self.backstory = backstory or "Driven by curiosity, you're at the forefront of innovation, eager to explore and share knowledge that could change the world."
@@ -21,6 +32,8 @@ class MyAgent:
         self.max_iter = max_iter or 25
         self.cache = cache if cache is not None else True
         self.edit_key = f'edit_{self.id}'
+        self.client = Zep(api_key='ZEP_API_KEY', base_url='https://api.getzep.com')  # Initialize Zep client
+        self.collection = self.client.memory
         if self.edit_key not in ss:
             ss[self.edit_key] = False
 
@@ -32,30 +45,35 @@ class MyAgent:
     def edit(self, value):
         ss[self.edit_key] = value
 
+    @record_action("get_crewai_agent")
     def get_crewai_agent(self) -> Agent:
-            llm = create_llm(self.llm_provider_model, temperature=self.temperature)
-            tools = [tool.create_tool() for tool in self.tools]
-            return Agent(
-                role=self.role,
-                backstory=self.backstory,
-                goal=self.goal,
-                allow_delegation=self.allow_delegation,
-                verbose=self.verbose,
-                max_iter=self.max_iter,
-                cache=self.cache,
-                tools=tools,
-                llm=llm
-            )
+        llm = create_llm(self.llm_provider_model, temperature=self.temperature)
+        tools = [tool.create_tool() for tool in self.tools]
+        return Agent(
+            role=self.role,
+            backstory=self.backstory,
+            goal=self.goal,
+            allow_delegation=self.allow_delegation,
+            verbose=self.verbose,
+            max_iter=self.max_iter,
+            cache=self.cache,
+            tools=tools,
+            llm=llm
+        )
 
+    @record_action("delete_agent")
     def delete(self):
         ss.agents = [agent for agent in ss.agents if agent.id != self.id]
         delete_agent(self.id)
 
+    @record_tool("validate_tool")
     def get_tool_display_name(self, tool):
+        print(type(tool))  
         first_param_name = tool.get_parameter_names()[0] if tool.get_parameter_names() else None
         first_param_value = tool.parameters.get(first_param_name, '') if first_param_name else ''
         return f"{tool.name} ({first_param_value if first_param_value else tool.tool_id})"
 
+    @record_action("validate_agent")
     def is_valid(self, show_warning=False):
         for tool in self.tools:
             if not tool.is_valid(show_warning=show_warning):
@@ -117,8 +135,19 @@ class MyAgent:
                 with col2:
                     st.button("Delete", on_click=self.delete, key=rnd_id())
 
+    def record_agent_data(self, data):
+        # Add data to the Zep collection
+        self.collection.insert(data)
+
+    def fetch_agent_data(self, query):
+        # Fetch data from the Zep collection based on a query
+        return self.collection.query(query)
+
     def set_editable(self, edit):
         self.edit = edit
         save_agent(self)
         if not edit:
             st.rerun()
+
+    def process_user_input(self, input_data):
+        record(ActionEvent("received_user_input"))

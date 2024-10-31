@@ -4,7 +4,6 @@ from utils import rnd_id, fix_columns_width
 from streamlit import session_state as ss
 from db_utils import save_task, delete_task
 from datetime import datetime
-
 class MyTask:
     def __init__(self, id=None, description=None, expected_output=None, agent=None, async_execution=None, created_at=None, context_from_async_tasks_ids=None, context_from_sync_tasks_ids=None, **kwargs):
         self.id = id or "T_" + rnd_id()

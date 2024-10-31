@@ -1,13 +1,10 @@
-import sqlite3
 import os
 import json
+import psycopg2
 from my_tools import TOOL_CLASSES
 
-DB_NAME = 'crewai.db'
-
 def get_db_connection():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(os.getenv('DATABASE_URL'))
     return conn
 
 def create_tables():
@@ -18,7 +15,7 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS entities (
             id TEXT PRIMARY KEY,
             entity_type TEXT,
-            data TEXT
+            data JSONB
         )
     ''')
     
@@ -26,23 +23,21 @@ def create_tables():
     conn.close()
 
 def initialize_db():
-    if not os.path.exists(DB_NAME):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT to_regclass(\'public.entities\')')
+    table_exists = cursor.fetchone()[0]
+    if not table_exists:
         create_tables()
-    else:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT name FROM sqlite_master WHERE type="table" AND name="entities"')
-        table_exists = cursor.fetchone()
-        if not table_exists:
-            create_tables()
-        conn.close()
+    conn.close()
 
 def save_entity(entity_type, entity_id, data):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT OR REPLACE INTO entities (id, entity_type, data)
-        VALUES (?, ?, ?)
+        INSERT INTO entities (id, entity_type, data)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (id) DO UPDATE SET entity_type = EXCLUDED.entity_type, data = EXCLUDED.data
     ''', (entity_id, entity_type, json.dumps(data)))
     conn.commit()
     conn.close()
@@ -50,16 +45,16 @@ def save_entity(entity_type, entity_id, data):
 def load_entities(entity_type):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM entities WHERE entity_type = ?', (entity_type,))
+    cursor.execute('SELECT * FROM entities WHERE entity_type = %s', (entity_type,))
     rows = cursor.fetchall()
     conn.close()
-    return [(row['id'], json.loads(row['data'])) for row in rows]
+    return [(row[0], json.loads(row[2])) for row in rows]
 
 def delete_entity(entity_type, entity_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        DELETE FROM entities WHERE id = ? AND entity_type = ?
+        DELETE FROM entities WHERE id = %s AND entity_type = %s
     ''', (entity_id, entity_type))
     conn.commit()
     conn.close()
@@ -88,12 +83,12 @@ def save_agent(agent):
         'llm_provider_model': agent.llm_provider_model,
         'temperature': agent.temperature,
         'max_iter': agent.max_iter,
-        'tool_ids': [tool.tool_id for tool in agent.tools]  # Save tool IDs
+        'tool_ids': [tool.tool_id for tool in agent.tools]
     }
     save_entity('agent', agent.id, data)
 
 def load_agents():
-    from my_agent import MyAgent
+    from my_agent import MyAgent  # Import within the function to avoid circular import
     rows = load_entities('agent')
     tools_dict = {tool.tool_id: tool for tool in load_tools()}
     agents = []
@@ -121,7 +116,7 @@ def save_task(task):
     save_entity('task', task.id, data)
 
 def load_tasks():
-    from my_task import MyTask
+    from my_task import MyTask  # Import within the function to avoid circular import
     rows = load_entities('task')
     agents_dict = {agent.id: agent for agent in load_agents()}
     tasks = []
@@ -145,7 +140,7 @@ def save_crew(crew):
         'memory': crew.memory,
         'cache': crew.cache,
         'planning': crew.planning,
-        'max_rpm' : crew.max_rpm,
+        'max_rpm': crew.max_rpm,
         'manager_llm': crew.manager_llm,
         'manager_agent_id': crew.manager_agent.id if crew.manager_agent else None,
         'created_at': crew.created_at
@@ -153,7 +148,7 @@ def save_crew(crew):
     save_entity('crew', crew.id, data)
 
 def load_crews():
-    from my_crew import MyCrew
+    from my_crew import MyCrew  # Import within the function to avoid circular import
     rows = load_entities('crew')
     agents_dict = {agent.id: agent for agent in load_agents()}
     tasks_dict = {task.id: task for task in load_tasks()}
@@ -213,9 +208,9 @@ def export_to_json(file_path):
     data = []
     for row in rows:
         entity = {
-            'id': row['id'],
-            'entity_type': row['entity_type'],
-            'data': json.loads(row['data'])
+            'id': row[0],
+            'entity_type': row[1],
+            'data': json.loads(row[2])
         }
         data.append(entity)
 
@@ -231,9 +226,19 @@ def import_from_json(file_path):
     
     for entity in data:
         cursor.execute('''
-            INSERT OR REPLACE INTO entities (id, entity_type, data)
-            VALUES (?, ?, ?)
+            INSERT INTO entities (id, entity_type, data)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data
         ''', (entity['id'], entity['entity_type'], json.dumps(entity['data'])))
 
     conn.commit()
     conn.close()
+
+def load_crew_run():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM crew_run;')
+    crew_runs = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return crew_runs

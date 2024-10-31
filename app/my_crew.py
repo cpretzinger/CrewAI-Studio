@@ -5,7 +5,6 @@ from streamlit import session_state as ss
 from datetime import datetime
 from llms import llm_providers_and_models, create_llm
 import db_utils
-
 class MyCrew:
     def __init__(self, id=None, name=None, agents=None, tasks=None, process=None, cache=None,max_rpm=None, verbose=None, manager_llm=None, manager_agent=None, created_at=None, memory=None, planning=None):
         self.id = id or "C_" + rnd_id()

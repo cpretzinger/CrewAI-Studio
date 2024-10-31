@@ -3,12 +3,13 @@ from utils import rnd_id
 from my_tools import TOOL_CLASSES
 from streamlit import session_state as ss
 import db_utils
-
+from agentops import record_tool
 class PageTools:
     def __init__(self):
         self.name = "Tools"
         self.available_tools = TOOL_CLASSES
 
+    @record_tool('ToolName')
     def create_tool(self, tool_name):
         tool_class = self.available_tools[tool_name]
         tool_instance = tool_class(rnd_id())
