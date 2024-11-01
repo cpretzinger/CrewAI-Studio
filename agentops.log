@@ -1,2 +1,13 @@
-2024-10-31 12:02:01,152 - INFO - Session Replay: https://app.agentops.ai/drilldown?session_id=8e8caff1-fb3a-4507-879b-2887dbce3be8
-2024-10-31 12:02:15,522 - ERROR - Could not post events - API server: Error posting event: Error inserting to table='actions'. Postgres: json['code']='22P02'. json['message']='invalid input syntax for type uuid: "<<non-serializable: function>>"'
+2024-11-01 12:29:53,037 - INFO - Session Replay: https://app.agentops.ai/drilldown?session_id=c5c7f9f9-d463-4be9-913d-359e0d2b5183
+2024-11-01 12:29:58,855 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:29:59,019 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:01,552 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:01,721 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:03,346 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:03,512 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:05,032 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:05,207 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:06,321 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:06,518 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:08,424 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.
+2024-11-01 12:30:08,601 - WARNING - AgentOps has already been initialized. If you are trying to start a session, call agentops.start_session() instead.

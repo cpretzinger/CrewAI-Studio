@@ -155,6 +155,7 @@ proto-plus==1.25.0
 protobuf==4.25.5
 psutil==5.9.8
 psycopg2==2.9.10
+psycopg2-binary==2.9.10
 ptyprocess==0.7.0
 pulsar-client==3.5.0
 pure_eval==0.2.3

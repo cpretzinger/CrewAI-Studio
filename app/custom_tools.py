@@ -6,6 +6,9 @@ import importlib.util
 from pydantic import BaseModel, Field, model_validator
 import docker
 import base64
+from base_tool import MyTool
+from agentops import record_tool
+
 class FixedCustomFileWriteToolInputSchema(BaseModel):
     content: str = Field(..., description="The content to write or append to the file")
     mode: str = Field(..., description="Mode to open the file in, either 'w' or 'a'")
@@ -23,58 +26,30 @@ class CustomFileWriteToolInputSchema(FixedCustomFileWriteToolInputSchema):
         "extra": "forbid"
     }
 
-class CustomFileWriteTool(BaseTool):
-    name: str = "Write File"
-    description: str = "Tool to write or append to files"
-    args_schema = CustomFileWriteToolInputSchema
-    filename: Optional[str] = None
-
-    def __init__(self, base_folder: str, filename: Optional[str] = None, **kwargs):
-        super().__init__(**kwargs)
-        if filename is not None and len(filename) > 0:
-            self.args_schema = FixedCustomFileWriteToolInputSchema
-        self._base_folder = base_folder
-        self.filename = filename or None
-        self._ensure_base_folder_exists()
-        self._generate_description()
-
-    def _ensure_base_folder_exists(self):
-        os.makedirs(self._base_folder, exist_ok=True)
-
-    def _get_full_path(self, filename: Optional[str]) -> str:
-        if filename is None and self.filename is None:
-            raise ValueError("No filename specified and no default file set.")
-
-        chosen_file = filename or self.filename
-        full_path = os.path.abspath(os.path.join(self._base_folder, chosen_file))
-
-        if not full_path.startswith(os.path.abspath(self._base_folder)):
-            raise ValueError("Access outside the base directory is not allowed.")
-
-        return full_path
-
-    def _run(self, content: str, mode: str, filename: Optional[str] = None) -> Dict[str, Any]:
-        full_path = self._get_full_path(filename)
-        try:
-            with open(full_path, 'a' if mode == 'a' else 'w') as file:
-                file.write(content)
-            return {
-                "status": "success",
-                "message": f"Content successfully {'appended to' if mode == 'a' else 'written to'} {full_path}"
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": str(e)
-            }
-
-    def run(self, input_data: CustomFileWriteToolInputSchema) -> Any:
-        response_data = self._run(
-            content=input_data.content,
-            mode=input_data.mode,
-            filename=getattr(input_data, 'filename', None)
+class MyCustomFileWriteTool(MyTool):
+    def __init__(self, tool_id=None, base_folder=None):
+        parameters = {
+            'base_folder': {'mandatory': True}
+        }
+        self.workspace_root = os.path.abspath(os.getenv('WORKSPACE_DIR', './workspace'))
+        if base_folder:
+            parameters['base_folder'] = base_folder
+        else:
+            parameters['base_folder'] = self.workspace_root
+        
+        super().__init__(
+            tool_id, 
+            'CustomFileWriteTool',
+            "A tool that can be used to write content to files within the allowed workspace directory.",
+            parameters
         )
-        return response_data
+
+    @record_tool('CustomFileWriteTool')
+    def create_tool(self) -> 'MyCustomFileWriteTool':  # Changed to string literal type annotation
+        base_folder = self.parameters.get('base_folder', self.workspace_root)
+        if not os.path.exists(base_folder):
+            os.makedirs(base_folder)
+        return MyCustomFileWriteTool(base_folder=base_folder)
 
 class CustomApiToolInputSchema(BaseModel):
     endpoint: str = Field(..., description="The specific endpoint for the API call")

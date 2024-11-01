@@ -1,0 +1,8 @@
+Metadata-Version: 2.1
+Name: crewai-studio
+Version: 0.1
+Requires-Dist: streamlit
+Requires-Dist: crewai
+Requires-Dist: python-dotenv
+Requires-Dist: zep-python
+Requires-Dist: agentops
